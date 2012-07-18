@@ -326,6 +326,10 @@ static void kgsl_pwrctrl_busy_time(struct kgsl_device *device, bool on_time)
 {
 	struct kgsl_busy *b = &device->pwrctrl.busy;
 	int elapsed;
+<<<<<<< HEAD
+=======
+	
+>>>>>>> d9b17b8... OC: GPU OC
 	if (b->start.tv_sec == 0)
 		do_gettimeofday(&(b->start));
 	do_gettimeofday(&(b->stop));
@@ -510,7 +514,11 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	}
 	pwr->num_pwrlevels = pdata->num_levels;
 	pwr->active_pwrlevel = pdata->init_level;
+<<<<<<< HEAD
 	pwr->default_pwrlevel = pdata->init_level;
+=======
+	pwr->thermal_pwrlevel = pdata->max_level;
+>>>>>>> d9b17b8... OC: GPU OC
 	for (i = 0; i < pdata->num_levels; i++) {
 		pwr->pwrlevels[i].gpu_freq =
 		(pdata->pwrlevel[i].gpu_freq > 0) ?
