@@ -117,9 +117,12 @@ config CPU_FREQ_DEFAULT_GOV_SCARY
 	select CPU_FREQ_GOV_SCARY
 
 config CPU_FREQ_DEFAULT_GOV_SMARTASS2
-	bool "lulzactive"
+	bool "smartass2"
 	select CPU_FREQ_GOV_SMARTASS2
 
+config CPU_FREQ_DEFAULT_GOV_BADASS
+	bool "badass"
+	select CPU_FREQ_GOV_BADASS
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
