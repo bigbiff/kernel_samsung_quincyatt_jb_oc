@@ -519,6 +519,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	pwr->active_pwrlevel = pdata->init_level;
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 	pwr->default_pwrlevel = pdata->init_level;
 =======
 	pwr->thermal_pwrlevel = pdata->max_level;
@@ -526,6 +527,9 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 =======
 	pwr->thermal_pwrlevel = pdata->max_level;
 >>>>>>> parent of 2584ec5... Revert "OC: GPU OC"
+=======
+	pwr->thermal_pwrlevel = pdata->max_level;
+>>>>>>> a31287d... GPU overclock support
 	for (i = 0; i < pdata->num_levels; i++) {
 		pwr->pwrlevels[i].gpu_freq =
 		(pdata->pwrlevel[i].gpu_freq > 0) ?
