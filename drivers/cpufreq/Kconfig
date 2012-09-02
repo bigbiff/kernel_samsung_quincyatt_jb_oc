@@ -109,8 +109,6 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 	  loading your cpufreq low-level hardware driver, using the
 	  'interactive' governor for latency-sensitive workloads.
 
-<<<<<<< HEAD
-=======
 config CPU_FREQ_DEFAULT_GOV_ADAPTIVE
 	bool "adaptive"
 	select CPU_FREQ_GOV_ADAPTIVE
@@ -121,19 +119,11 @@ config CPU_FREQ_DEFAULT_GOV_ADAPTIVE
 	  'adaptive' governor for latency-sensitive workloads and demanding
 	  performance.
 
-config CPU_FREQ_DEFAULT_GOV_PEGASUSQ
-	bool "pegasusq"
-	select CPU_FREQ_GOV_PEGASUSQ
-
 config CPU_FREQ_DEFAULT_GOV_LULZACTIVE
 	bool "lulzactive"
-    select CPU_FREQ_GOV_LULZACTIVE
-
-<<<<<<< HEAD
->>>>>>> c4e58cf... cpufreq: add lulzactive
-=======
->>>>>>> c4e58cf... cpufreq: add lulzactive
-endchoice
+        select CPU_FREQ_GOV_LULZACTIVE
+        help
+          LUL
 
 config CPU_FREQ_GOV_PERFORMANCE
 	tristate "'performance' governor"
@@ -230,8 +220,6 @@ config CPU_FREQ_GOV_CONSERVATIVE
 
 	  If in doubt, say N.
 
-<<<<<<< HEAD
-=======
 config CPU_FREQ_GOV_ADAPTIVE
 	tristate "'adaptive' cpufreq policy governor"
 	help
@@ -253,9 +241,6 @@ config CPU_FREQ_GOV_ADAPTIVE
 
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_PEGASUSQ
-	tristate "'pegasusq' cpufreq policy governor"
-
 config CPU_FREQ_GOV_LULZACTIVE
 	tristate "'lulzactive' cpufreq governor"
 	depends on CPU_FREQ
@@ -264,10 +249,6 @@ config CPU_FREQ_GOV_LULZACTIVE
 
 	  If in doubt, say N.
 
-<<<<<<< HEAD
->>>>>>> c4e58cf... cpufreq: add lulzactive
-=======
->>>>>>> c4e58cf... cpufreq: add lulzactive
 config SEC_DVFS
 	bool "DVFS job"
 	default n
