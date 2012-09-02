@@ -129,9 +129,6 @@ config CPU_FREQ_DEFAULT_GOV_LULZACTIVE
 	bool "lulzactive"
     select CPU_FREQ_GOV_LULZACTIVE
 
-<<<<<<< HEAD
->>>>>>> c4e58cf... cpufreq: add lulzactive
-=======
 >>>>>>> c4e58cf... cpufreq: add lulzactive
 endchoice
 
@@ -264,9 +261,6 @@ config CPU_FREQ_GOV_LULZACTIVE
 
 	  If in doubt, say N.
 
-<<<<<<< HEAD
->>>>>>> c4e58cf... cpufreq: add lulzactive
-=======
 >>>>>>> c4e58cf... cpufreq: add lulzactive
 config SEC_DVFS
 	bool "DVFS job"
