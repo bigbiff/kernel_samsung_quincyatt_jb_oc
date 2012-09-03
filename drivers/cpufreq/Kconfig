@@ -112,6 +112,10 @@ config CPU_FREQ_DEFAULT_GOV_LULZACTIVE
 	bool "lulzactive"
 	select CPU_FREQ_GOV_LULZACTIVE
 
+config CPU_FREQ_DEFAULT_GOV_SCARY
+	bool "lulzactive"
+	select CPU_FREQ_GOV_SCARY
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -215,6 +219,13 @@ config CPU_FREQ_GOV_LULZACTIVE
 	help
 	'lulzactive' - a new interactive governor by Tegrak!
 
+	If in doubt, say N.
+
+config CPU_FREQ_GOV_SCARY
+	tristate "'scary' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	scary governor
 	If in doubt, say N.
 
 config SEC_DVFS
