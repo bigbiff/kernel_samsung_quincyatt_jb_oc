@@ -116,6 +116,10 @@ config CPU_FREQ_DEFAULT_GOV_SCARY
 	bool "lulzactive"
 	select CPU_FREQ_GOV_SCARY
 
+config CPU_FREQ_DEFAULT_GOV_SMARTASS2
+	bool "lulzactive"
+	select CPU_FREQ_GOV_SMARTASS2
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -226,6 +230,13 @@ config CPU_FREQ_GOV_SCARY
 	depends on CPU_FREQ
 	help
 	scary governor
+	If in doubt, say N.
+
+config CPU_FREQ_GOV_SMARTASS2
+	tristate "'smartass2' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	smartass2 governor
 	If in doubt, say N.
 
 config SEC_DVFS
