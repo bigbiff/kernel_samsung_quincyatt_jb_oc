@@ -623,11 +623,7 @@ static struct msm_bus_vectors grp3d_nominal_high_vectors[] = {
 		.src = MSM_BUS_MASTER_GRAPHICS_3D,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab = 0,
-<<<<<<< HEAD
-        .ib = KGSL_CONVERT_TO_MBPS(2484),
-=======
 		.ib = KGSL_CONVERT_TO_MBPS(2484),
->>>>>>> a31287d... GPU overclock support
 	},
 };
 
@@ -636,11 +632,7 @@ static struct msm_bus_vectors grp3d_max_vectors[] = {
 		.src = MSM_BUS_MASTER_GRAPHICS_3D,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab = 0,
-<<<<<<< HEAD
-        .ib = KGSL_CONVERT_TO_MBPS(2976),
-=======
 		.ib = KGSL_CONVERT_TO_MBPS(2976),
->>>>>>> a31287d... GPU overclock support
 	},
 };
 
@@ -864,9 +856,6 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 		},
 	},
 	.init_level = 2,
-<<<<<<< HEAD
-	.max_level = 2,
-=======
 #if defined(CONFIG_MSM_KGSL_GPU_CLOCK_MAX)
 	.max_level = 0,
 #elif defined(CONFIG_MSM_KGSL_GPU_CLOCK_MODERATE)
@@ -874,7 +863,6 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 #else
 	.max_level = 2,
 #endif
->>>>>>> a31287d... GPU overclock support
 	.num_levels = 7,
 	.set_grp_async = NULL,
 	.idle_timeout = HZ/5,
@@ -938,10 +926,6 @@ static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 		},
 	},
 	.init_level = 2,
-<<<<<<< HEAD
-	.max_level = 2,
-	.num_levels = 4,
-=======
 #if defined(CONFIG_MSM_KGSL_GPU_CLOCK_MAX)
 	.max_level = 0,
 #elif defined(CONFIG_MSM_KGSL_GPU_CLOCK_MODERATE)
@@ -950,7 +934,6 @@ static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 	.max_level = 2,
 #endif
 	.num_levels = 6,
->>>>>>> a31287d... GPU overclock support
 	.set_grp_async = NULL,
 	.idle_timeout = HZ/5,
 	.nap_allowed = true,
@@ -1013,10 +996,6 @@ static struct kgsl_device_platform_data kgsl_2d1_pdata = {
 		},
 	},
 	.init_level = 2,
-<<<<<<< HEAD
-	.max_level = 2,
-	.num_levels = 4,
-=======
 #if defined(CONFIG_MSM_KGSL_GPU_CLOCK_MAX)
 	.max_level = 0,
 #elif defined(CONFIG_MSM_KGSL_GPU_CLOCK_MODERATE)
@@ -1025,7 +1004,6 @@ static struct kgsl_device_platform_data kgsl_2d1_pdata = {
 	.max_level = 2,
 #endif
 	.num_levels = 6,
->>>>>>> a31287d... GPU overclock support
 	.set_grp_async = NULL,
 	.idle_timeout = HZ/5,
 	.nap_allowed = false,
