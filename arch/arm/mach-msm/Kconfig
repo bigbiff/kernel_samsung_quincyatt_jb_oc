@@ -2438,7 +2438,6 @@ config SEC_AUDIO_I2S_DRIVING_CURRENT
 	help
 	  Support I2S driving current up
 
-
 config Q1_KOR_AUDIO
 	bool "Q1 KOR AUDIO"
 	default n
