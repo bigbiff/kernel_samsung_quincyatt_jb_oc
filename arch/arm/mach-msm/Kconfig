@@ -1341,38 +1341,38 @@ config MSM_DALRPC_TEST
 	help
 	  Exercises DAL RPC calls to QDSP6.
 
-config MSM_KGSL_GPU_CLOCK
-	bool "Extend GPU clock frequency"
+config CPU_VOLTAGE_TABLE
+ 	bool "Enable CPU Voltage Table via sysfs for adjustements"
+ 	default n
+
+config MSM_MPDEC
+	bool "Enable kernel based mpdecision"
+	depends on MSM_SMP
 	default n
 	help
-	  Adds higher than manufacturer recommended frequencies that can be set
-	  from userspace via sysfs.
+	  This enables kernel based multi core control.
+	  (up/down hotplug based on load)
 
 choice
-	prompt "Default maximum GPU clock"
-	depends on MSM_KGSL_GPU_CLOCK
-	default MSM_KGSL_GPU_CLOCK_STOCK
-	help
-	  Sets the default maximum clock speed of the GPU in the kernel.
-	  It is recommended to use the Default, and use userspace tools
-	  to control the maximum clock.  Setting this value to anything
-	  other than the default could result in a unbootable system, or
-	  physical damage to the GPU.
+    prompt "Default MPdecision setting"
+    help
+      This option sets the MPdecision startup settings.
+      If in doubt, select 'enabled'.
 
-	config MSM_KGSL_GPU_CLOCK_DEFAULT
-		bool "Normal (3d@266 & 2d@200)"
-		help
-		  Default GPU clock
+config MSM_MPDEC_ENABLED
+    bool "enabled"
+    depends on MSM_MPDEC
+    help
+      Build MPdecision into kernel with full control over 
+      multi processor decisions by default.
 
-	config MSM_KGSL_GPU_CLOCK_MODERATE
-		bool "Moderate (3d@300 & 2d@228)"
-		help
-		  Moderate GPU overclock
+config MSM_MPDEC_DISABLED
+    bool "disabled"
+    depends on MSM_MPDEC
+    help
+      Build MPdecision into kernel with only control over 
+      screen on/off multi processor decisions by default.
 
-	config MSM_KGSL_GPU_CLOCK_MAX
-		bool "Maximum (3d@320 & 2d@266)"
-		help
-		  Maximum GPU overclock
 endchoice
 
 if CPU_FREQ_MSM
@@ -2438,11 +2438,21 @@ config SEC_AUDIO_I2S_DRIVING_CURRENT
 	help
 	  Support I2S driving current up
 
+
 config Q1_KOR_AUDIO
 	bool "Q1 KOR AUDIO"
 	default n
 	help
 	  Support Q1 KOR AUDIO
+
+config MSM_DCVS
+	bool "Use MSM DCVS for CPU/GPU Frequency control"
+	depends on MSM_SCM
+	help
+	  Enable support for MSM DCVS to control all CPU and GPU core frequencies.
+	  The DCVS manager allows idle driver to feed the idle information to the
+	  algorithm and the algorithm returns a frequency for the core which is
+	  passed to the frequency change driver.
 
 config ATHEROS_WIFI
 	bool "ATHEROS WIFI"
