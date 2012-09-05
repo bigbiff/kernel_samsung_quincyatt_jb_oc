@@ -91,6 +91,8 @@
 /* PTE EFUSE register. */
 #define QFPROM_PTE_EFUSE_ADDR		(MSM_QFPROM_BASE + 0x00C0)
 
+#define FREQ_TABLE_SIZE      36
+
 static const void * const clk_ctl_addr[] = {SPSS0_CLK_CTL_ADDR,
 			SPSS1_CLK_CTL_ADDR};
 static const void * const clk_sel_addr[] = {SPSS0_CLK_SEL_ADDR,
@@ -197,10 +199,8 @@ static struct clkctl_l2_speed l2_freq_tbl_v2[] = {
 	[16] = {1242000,  1, 0x17, 1200000, 1212500, 3},
 	[17] = {1296000,  1, 0x18, 1200000, 1225000, 3},
 	[18] = {1350000,  1, 0x19, 1200000, 1225000, 3},
-	[19] = {1404000,  1, 0x1A, 1200000, 1250000, 4},
-	[20] = {1458000,  1, 0x1B, 1212500, 1250000, 4},
-	[21] = {1512000,  1, 0x1C, 1212500, 1250000, 4},
-	[22] = {1566000,  1, 0x1D, 1212500, 1250000, 4},
+	[19] = {1404000,  1, 0x1A, 1200000, 1250000, 3},
+	[20] = {1620000,  1, 0x1E, 1250000, 1275000, 4},
 };
 
 #define L2(x) (&l2_freq_tbl_v2[(x)])
@@ -222,12 +222,12 @@ static struct clkctl_acpu_speed acpu_freq_tbl_oc[] = {
   { {1, 1}, 1350000,  ACPU_SCPLL, 0, 0, 1, 0x19, L2(18), 1150000, 0x03006000},
   { {1, 1}, 1458000,  ACPU_SCPLL, 0, 0, 1, 0x1B, L2(19), 1175000, 0x03006000},
   { {1, 1}, 1512000,  ACPU_SCPLL, 0, 0, 1, 0x1C, L2(19), 1200000, 0x03006000},
-  { {1, 1}, 1620000,  ACPU_SCPLL, 0, 0, 1, 0x1E, L2(22), 1225000, 0x03006000},
-  { {1, 1}, 1674000,  ACPU_SCPLL, 0, 0, 1, 0x1F, L2(22), 1250000, 0x03006000},
-  { {1, 1}, 1728000,  ACPU_SCPLL, 0, 0, 1, 0x20, L2(22), 1275000, 0x03006000},
-  { {1, 1}, 1782000,  ACPU_SCPLL, 0, 0, 1, 0x21, L2(22), 1300000, 0x03006000},
-  { {1, 1}, 1836000,  ACPU_SCPLL, 0, 0, 1, 0x22, L2(22), 1325000, 0x03006000},
-  { {1, 1}, 1890000,  ACPU_SCPLL, 0, 0, 1, 0x23, L2(22), 1350000, 0x03006000},
+  { {1, 1}, 1566000,  ACPU_SCPLL, 0, 0, 1, 0x1D, L2(19), 1225000, 0x03006000},
+  { {1, 1}, 1620000,  ACPU_SCPLL, 0, 0, 1, 0x1E, L2(20), 1225000, 0x03006000},
+  { {1, 1}, 1674000,  ACPU_SCPLL, 0, 0, 1, 0x1F, L2(20), 1250000, 0x03006000},
+  { {1, 1}, 1728000,  ACPU_SCPLL, 0, 0, 1, 0x20, L2(20), 1275000, 0x03006000},
+  { {1, 1}, 1782000,  ACPU_SCPLL, 0, 0, 1, 0x21, L2(20), 1300000, 0x03006000},
+  { {1, 1}, 1836000,  ACPU_SCPLL, 0, 0, 1, 0x22, L2(20), 1325000, 0x03006000},
   { {0, 0}, 0 },
 };
 
@@ -757,7 +757,7 @@ static void __init bus_init(void)
 }
 
 #ifdef CONFIG_CPU_FREQ_MSM
-static struct cpufreq_frequency_table freq_table[NR_CPUS][40];
+static struct cpufreq_frequency_table freq_table[NR_CPUS][FREQ_TABLE_SIZE];
 
 static void __init cpufreq_table_init(void)
 {
