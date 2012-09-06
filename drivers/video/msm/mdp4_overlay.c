@@ -1886,6 +1886,32 @@ static void mdp4_overlay_bg_solidfill(struct blend_cfg *blend)
 	mdp4_overlay_reg_flush(pipe, 0);
 }
 
+void mdp4_mixer_blend_cfg(int mixer)
+{
+	int i, off;
+	unsigned char *overlay_base;
+	struct blend_cfg *blend;
+
+	if (mixer == MDP4_MIXER2)
+		overlay_base = MDP_BASE + MDP4_OVERLAYPROC2_BASE;
+	else if (mixer == MDP4_MIXER1)
+		overlay_base = MDP_BASE + MDP4_OVERLAYPROC1_BASE;
+	else
+		overlay_base = MDP_BASE + MDP4_OVERLAYPROC0_BASE;
+
+	blend = &ctrl->blend[mixer][MDP4_MIXER_STAGE_BASE];
+	blend++; /* stage0 */
+
+	for (i = MDP4_MIXER_STAGE0; i < MDP4_MIXER_STAGE_MAX; i++) {
+		off = 20 * i;
+		off = 0x20 * (i - MDP4_MIXER_STAGE0);
+		if (i == MDP4_MIXER_STAGE3)
+			off -= 4;
+		outpdw(overlay_base + off + 0x104, blend->op);
+		blend++;
+	}
+}
+
 /*
  * D(i+1) = Ks * S + Kd * D(i)
  */
@@ -2012,7 +2038,10 @@ void mdp4_mixer_blend_setup(int mixer)
 
 		outpdw(overlay_base + off + 0x108, blend->fg_alpha);
 		outpdw(overlay_base + off + 0x10c, blend->bg_alpha);
-		outpdw(overlay_base + off + 0x104, blend->op);
+
+		if (mdp_rev >= MDP_REV_42)
+			outpdw(overlay_base + off + 0x104, blend->op);
+
 		outpdw(overlay_base + (off << 5) + 0x1004, blend->co3_sel);
 		outpdw(overlay_base + off + 0x110, blend->transp_low0);/* low */
 		outpdw(overlay_base + off + 0x114, blend->transp_low1);/* low */
@@ -2403,17 +2432,6 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 		return ret;
 	}
 
-	/*
-	 * Serveral special cases require the max mdp clk but cannot
-	 * be explained by mdp clk equation.
-	 */
-	if (pipe->flags & MDP_DEINTERLACE) {
-		pr_info("%s deinterlace requires max mdp clk.\n",
-			__func__);
-		pipe->req_clk = mdp_max_clk;
-		return 0;
-	}
-
 	pr_debug("%s: pipe sets: panel res(x,y)=(%d,%d)\n",
 		 __func__,  mfd->panel_info.xres, mfd->panel_info.yres);
 	pr_debug("%s: src(w,h)(%d,%d),src(x,y)(%d,%d)\n",
@@ -2525,6 +2543,22 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 	rst >>= shift;
 
 	/*
+	 * There is one special case for the panels that have low
+	 * v_back_porch (<=4), mdp clk should be fast enough to buffer
+	 * 4 lines input during back porch time if scaling is
+	 * required(FIR).
+	 */
+	if ((mfd->panel_info.lcdc.v_back_porch <= 4) &&
+	    (pipe->src_h != pipe->dst_h)) {
+		u32 clk = 0;
+		clk = 4 * (pclk >> shift) / mfd->panel_info.lcdc.v_back_porch;
+		clk <<= shift;
+		pr_debug("%s: mdp clk rate %d based on low vbp %d\n",
+			 __func__, clk, mfd->panel_info.lcdc.v_back_porch);
+		rst = (rst > clk) ? rst : clk;
+	}
+
+	/*
 	 * If the calculated mdp clk is less than panel pixel clk,
 	 * most likely due to upscaling, mdp clk rate will be set to
 	 * greater than pclk. Now the driver uses 1.15 as the
@@ -2533,6 +2567,16 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 	if (rst < pclk) {
 		rst = ((pclk >> shift) * 23 / 20) << shift;
 		pr_debug("%s calculated mdp clk is less than pclk.\n",
+			__func__);
+	}
+
+	/*
+	 * Interlaced videos require the max mdp clk but cannot
+	 * be explained by mdp clk equation.
+	 */
+	if (pipe->flags & MDP_DEINTERLACE) {
+		rst = (rst > mdp_max_clk) ? rst : mdp_max_clk;
+		pr_info("%s deinterlace requires max mdp clk.\n",
 			__func__);
 	}
 
@@ -3634,4 +3678,3 @@ done:
 	mutex_unlock(&mfd->dma->ov_mutex);
 	return err;
 }
-
