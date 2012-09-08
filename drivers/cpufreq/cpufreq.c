@@ -33,27 +33,6 @@
 #include <trace/events/power.h>
 #include <linux/semaphore.h>
 
-/* Description of __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
- *
- * When the kobject of cpufreq's ref count is zero in show/store function,
- * cpufreq_cpu_put() causes a deadlock because the active count of the
- * accessing file is incremented just before calling show/store at
- * fill_read(write)_buffer.
- * (This happens when show/store is called first and then the cpu_down is called
- * before the show/store function is finished)
- * So basically, cpufreq_cpu_put() in show/store must not release the kobject
- * of cpufreq. To make sure that kobj ref count of the cpufreq is not 0 in this
- * case, a per cpu mutex is used.
- * This per cpu mutex wraps the whole show/store function and kobject_put()
- * function in __cpufreq_remove_dev().
- */
- #define __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-
-
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-static DEFINE_PER_CPU(struct mutex, cpufreq_remove_mutex);
-#endif
-
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -216,27 +195,6 @@ void cpufreq_cpu_put(struct cpufreq_policy *data)
 	__cpufreq_cpu_put(data, 0);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
-
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-/* just peek to see if the cpufreq policy is available.
- * The caller must hold cpufreq_driver_lock
- */
-struct cpufreq_policy *cpufreq_cpu_peek(unsigned int cpu)
-{
-	struct cpufreq_policy *data;
-
-	if (cpu >= nr_cpu_ids)
-		return NULL;
-
-	if (!cpufreq_driver)
-		return NULL;
-
-	/* get the CPU */
-	data = per_cpu(cpufreq_cpu_data, cpu);
-
-	return data;
-}
-#endif
 
 static void cpufreq_cpu_put_sysfs(struct cpufreq_policy *data)
 {
@@ -474,8 +432,9 @@ static ssize_t store_##file_name					\
 	return ret ? ret : count;					\
 }
 
+store_one(scaling_min_freq, min);
 #ifdef CONFIG_SEC_DVFS
-static ssize_t store_scaling_min_freq
+static ssize_t store_scaling_max_freq
 (struct cpufreq_policy *policy, const char *buf, size_t count)
 {									
 	unsigned int ret = -EINVAL;
@@ -485,40 +444,17 @@ static ssize_t store_scaling_min_freq
 	if (ret != 1)							
 		return -EINVAL;
 
-	if (policy->cpu == BOOT_CPU) {
-		if (value <= MIN_FREQ_LIMIT)
-			cpufreq_set_limit_defered(USER_MIN_STOP, value);
-		else if (value <= MAX_FREQ_LIMIT)
-			cpufreq_set_limit_defered(USER_MIN_START, value);
-	}
-
-	return count;
-}
-
-static ssize_t store_scaling_max_freq
-	(struct cpufreq_policy *policy, const char *buf, size_t count)
-{
-	unsigned int ret = -EINVAL;
-	unsigned int value = 0;
-
-	ret = sscanf(buf, "%u", &value);
-	if (ret != 1)
-		return -EINVAL;
-
-	if (policy->cpu == BOOT_CPU) {
-if (value >= MAX_FREQ_LIMIT) {
-			MAX_FREQ_LIMIT = value;
-			cpufreq_set_limit_defered(USER_MAX_STOP, value);
-			cpufreq_set_limit_defered(APPS_MAX_STOP, value);
-		}
+	if (policy->cpu == BOOT_CPU) 
+{									
+		if (value >= MAX_FREQ_LIMIT)
+			set_freq_limit(DVFS_THERMALD_ID, -1);
 		else if (value >= MIN_FREQ_LIMIT)
-			cpufreq_set_limit_defered(USER_MAX_START, value);
+			set_freq_limit(DVFS_THERMALD_ID, value);
 	}
 
 	return count;
 }
 #else
-store_one(scaling_min_freq, min);
 store_one(scaling_max_freq, max);
 #endif
 
@@ -580,8 +516,6 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
 
-	sysfs_notify(&policy->kobj, NULL, "scaling_governor");
-
 	if (ret)
 		return ret;
 	else
@@ -636,59 +570,6 @@ static ssize_t show_cpus(const struct cpumask *mask, char *buf)
 	i += sprintf(&buf[i], "\n");
 	return i;
 }
-
-#ifdef CONFIG_VDD_USERSPACE
-extern ssize_t acpuclk_get_vdd_levels_str(char *buf);
-static ssize_t show_vdd_levels(struct cpufreq_policy *policy, char *buf)
-{
-	return acpuclk_get_vdd_levels_str(buf);
-}
-
-extern void acpuclk_set_vdd(unsigned acpu_khz, int vdd);
-static ssize_t store_vdd_levels(struct cpufreq_policy *policy, const char *buf, size_t count)
-{
-	int i = 0, j;
-	int pair[2] = { 0, 0 };
-	int sign = 0;
-	if (count < 1)
-		return 0;
-	if (buf[0] == '-') {
-		sign = -1;
-		i++;
-	}
-	else if (buf[0] == '+') {
-		sign = 1;
-		i++;
-	}
-	for (j = 0; i < count; i++) {
-		char c = buf[i];
-		if ((c >= '0') && (c <= '9')) {
-			pair[j] *= 10;
-			pair[j] += (c - '0');
-		}
-		else if ((c == ' ') || (c == '\t')) {
-			if (pair[j] != 0) {
-				j++;
-				if ((sign != 0) || (j > 1))
-					break;
-			}
-		}
-		else
-			break;
-	}
-	if (sign != 0) {
-		if (pair[0] > 0)
-			acpuclk_set_vdd(0, sign * pair[0]);
-	}
-	else {
-		if ((pair[0] > 0) && (pair[1] > 0))
-			acpuclk_set_vdd((unsigned)pair[0], pair[1]);
-		else
-			return -EINVAL;
-	}
-	return count;
-}
-#endif
 
 /**
  * show_related_cpus - show the CPUs affected by each transition even if
@@ -750,6 +631,59 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+#ifdef CONFIG_VDD_USERSPACE
+extern ssize_t acpuclk_get_vdd_levels_str(char *buf);
+static ssize_t show_vdd_levels(struct cpufreq_policy *policy, char *buf)
+{
+	return acpuclk_get_vdd_levels_str(buf);
+}
+
+extern void acpuclk_set_vdd(unsigned acpu_khz, int vdd);
+static ssize_t store_vdd_levels(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	int i = 0, j;
+	int pair[2] = { 0, 0 };
+	int sign = 0;
+	if (count < 1)
+		return 0;
+	if (buf[0] == '-') {
+		sign = -1;
+		i++;
+	}
+	else if (buf[0] == '+') {
+		sign = 1;
+		i++;
+	}
+	for (j = 0; i < count; i++) {
+		char c = buf[i];
+		if ((c >= '0') && (c <= '9')) {
+			pair[j] *= 10;
+			pair[j] += (c - '0');
+		}
+		else if ((c == ' ') || (c == '\t')) {
+			if (pair[j] != 0) {
+				j++;
+				if ((sign != 0) || (j > 1))
+					break;
+			}
+		}
+		else
+			break;
+	}
+	if (sign != 0) {
+		if (pair[0] > 0)
+			acpuclk_set_vdd(0, sign * pair[0]);
+	}
+	else {
+		if ((pair[0] > 0) && (pair[1] > 0))
+			acpuclk_set_vdd((unsigned)pair[0], pair[1]);
+		else
+			return -EINVAL;
+	}
+	return count;
+}
+#endif
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -799,27 +733,6 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 	struct cpufreq_policy *policy = to_policy(kobj);
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	unsigned int cpu;
-	unsigned long flags;
-#endif
-
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	spin_lock_irqsave(&cpufreq_driver_lock, flags);
-	policy = cpufreq_cpu_peek(policy->cpu);
-	if (!policy) {
-		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		return -EINVAL;
-	}
-	cpu = policy->cpu;
-	if (mutex_trylock(&per_cpu(cpufreq_remove_mutex, cpu)) == 0) {
-		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		pr_info("!WARN %s failed because cpu%u is going down\n",
-			__func__, cpu);
-		return -EINVAL;
-	}
-	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-#endif
 	policy = cpufreq_cpu_get_sysfs(policy->cpu);
 	if (!policy)
 		goto no_policy;
@@ -836,9 +749,6 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 fail:
 	cpufreq_cpu_put_sysfs(policy);
 no_policy:
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	mutex_unlock(&per_cpu(cpufreq_remove_mutex, cpu));
-#endif
 	return ret;
 }
 
@@ -848,27 +758,6 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	struct cpufreq_policy *policy = to_policy(kobj);
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	unsigned int cpu;
-	unsigned long flags;
-#endif
-
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	spin_lock_irqsave(&cpufreq_driver_lock, flags);
-	policy = cpufreq_cpu_peek(policy->cpu);
-	if (!policy) {
-		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		return -EINVAL;
-	}
-	cpu = policy->cpu;
-	if (mutex_trylock(&per_cpu(cpufreq_remove_mutex, cpu)) == 0) {
-		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		pr_info("!WARN %s failed because cpu%u is going down\n",
-			__func__, cpu);
-		return -EINVAL;
-	}
-	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-#endif
 	policy = cpufreq_cpu_get_sysfs(policy->cpu);
 	if (!policy)
 		goto no_policy;
@@ -885,9 +774,6 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 fail:
 	cpufreq_cpu_put_sysfs(policy);
 no_policy:
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	mutex_unlock(&per_cpu(cpufreq_remove_mutex, cpu));
-#endif
 	return ret;
 }
 
@@ -1345,13 +1231,7 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 	kobj = &data->kobj;
 	cmp = &data->kobj_unregister;
 	unlock_policy_rwsem_write(cpu);
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	mutex_lock(&per_cpu(cpufreq_remove_mutex, cpu));
-#endif
 	kobject_put(kobj);
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-	mutex_unlock(&per_cpu(cpufreq_remove_mutex, cpu));
-#endif
 	/* we need to make sure that the underlying kobj is actually
 	 * not referenced anymore by anybody before we proceed with
 	 * unloading.
@@ -1950,232 +1830,6 @@ error_out:
 	return ret;
 }
 
-#ifdef CONFIG_SEC_DVFS
-struct cpufreq_queue_data {
-	unsigned int flag;
-	unsigned int value;
-
-	struct work_struct work;
-	struct workqueue_struct *wq;
-};
-
-struct cpufreq_queue_data cpufreq_queue_priv;
-static DEFINE_SEMAPHORE(cpufreq_defered_lock);
-static DEFINE_MUTEX(set_cpu_freq_lock);
-
-static unsigned long freq_limit_start_flag;
-static unsigned int app_min_freq_limit = MIN_FREQ_LIMIT;
-static unsigned int app_max_freq_limit = 1512000;
-static unsigned int user_min_freq_limit = MIN_FREQ_LIMIT;
-static unsigned int user_max_freq_limit = 1512000;
-
-static int cpufreq_set_limits_off
-	(int cpu, unsigned int min, unsigned int max)
-{
-	int ret = -ENODEV;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpufreq_driver_lock, flags);
-
-	if (!cpufreq_driver)
-		goto out_unlock;
-
-	if (!try_module_get(cpufreq_driver->owner))
-		goto out_unlock;
-
-	per_cpu(cpufreq_policy_save, cpu).min = min;
-	per_cpu(cpufreq_policy_save, cpu).max = max;
-
-	ret = 0;
-
-	module_put(cpufreq_driver->owner);
-
-out_unlock:
-	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-
-	return ret;
-}
-
-static int cpufreq_set_limits(int cpu, unsigned int min, unsigned int max)
-{
-	struct cpufreq_policy *policy = NULL;
-	struct cpufreq_policy new_policy;
-	int ret = -EINVAL;
-
-	if (cpu_is_offline(cpu))
-		goto no_policy;
-
-	policy = cpufreq_cpu_get(cpu);
-	if (!policy)
-		goto no_policy;
-
-	if (policy->min == min && policy->max == max)
-		goto cpu_put;
-
-	if (lock_policy_rwsem_write(cpu) < 0)
-		goto cpu_put;
-
-	ret = cpufreq_get_policy(&new_policy, policy->cpu);
-	if (ret)
-		goto unlock;
-
-	if (max < policy->min) {
-		new_policy.min = max;
-		ret = __cpufreq_set_policy(policy, &new_policy);
-		policy->user_policy.min = policy->min;
-	}
-
-	if (min > policy->max) {
-		new_policy.max = min;
-		ret = __cpufreq_set_policy(policy, &new_policy);
-		policy->user_policy.max = policy->max;
-	}
-
-	new_policy.min = min;
-	new_policy.max = max;
-
-	ret = __cpufreq_set_policy(policy, &new_policy);
-
-	policy->user_policy.min = policy->min;
-	policy->user_policy.max = policy->max;
-
-unlock:
-	unlock_policy_rwsem_write(policy->cpu);
-
-cpu_put:
-	cpufreq_cpu_put(policy);
-
-no_policy:
-	if (cpu_is_offline(cpu))
-		ret = cpufreq_set_limits_off(cpu, min, max);
-
-	return ret;
-}
-
-int cpufreq_set_limit(unsigned int flag, unsigned int value)
-{
-	unsigned int max_value = 0;
-	unsigned int min_value = 0;
-
-	if (!flag) {
-		printk(KERN_ERR"%s: invalid flag %d\n",
-			__func__, flag);
-		return -EINVAL;
-	}
-
-	mutex_lock(&set_cpu_freq_lock);
-
-	/* update min/max freq limit for apps/user */
-	if (flag == APPS_MAX_START)
-		app_max_freq_limit = value;
-	else if (flag == APPS_MAX_STOP)
-		app_max_freq_limit = MAX_FREQ_LIMIT;
-	else if (flag == APPS_MIN_START)
-		app_min_freq_limit = value;
-	else if (flag == APPS_MIN_STOP)
-		app_min_freq_limit = MIN_FREQ_LIMIT;
-	else if (flag == USER_MAX_START)
-		user_max_freq_limit = value;
-	else if (flag == USER_MAX_STOP)
-		user_max_freq_limit = MAX_FREQ_LIMIT;
-	else if (flag == USER_MIN_START)
-		user_min_freq_limit = value;
-	else if (flag == USER_MIN_STOP)
-		user_min_freq_limit = MIN_FREQ_LIMIT;
-
-	/*  set/clear bits */
-	if (flag%10 == 0)
-		set_bit(flag/MULTI_FACTOR, &freq_limit_start_flag);
-	else
-		clear_bit(flag/MULTI_FACTOR, &freq_limit_start_flag);
-
-	if (flag == APPS_MIN_START && value == MAX_FREQ_LIMIT)
-		clear_bit(UNI_PRO_STOP/MULTI_FACTOR, &freq_limit_start_flag);
-
-	/* set max freq */
-	if (freq_limit_start_flag & UNI_PRO_BIT)
-		max_value = LOW_MAX_FREQ_LIMIT;
-	else
-		max_value = MAX_FREQ_LIMIT;
-
-	/* cpufreq_max_limit */
-	if (freq_limit_start_flag & APPS_MAX_BIT) {
-		if (max_value > app_max_freq_limit)
-			max_value = app_max_freq_limit;
-	}
-
-	/* thermald */
-	if (freq_limit_start_flag & USER_MAX_BIT) {
-		if (max_value > user_max_freq_limit)
-			max_value = user_max_freq_limit;
-	}
-
-	/* set min freq */
-	if (freq_limit_start_flag & TOUCH_BOOSTER_FIRST_BIT)
-		min_value = TOUCH_BOOSTER_FIRST_FREQ_LIMIT;
-	else if (freq_limit_start_flag & TOUCH_BOOSTER_SECOND_BIT)
-		min_value = TOUCH_BOOSTER_SECOND_FREQ_LIMIT;
-	else if (freq_limit_start_flag & TOUCH_BOOSTER_BIT)
-		min_value = TOUCH_BOOSTER_FREQ_LIMIT;
-	else
-		min_value = MIN_FREQ_LIMIT;
-
-	/* cpufreq_min_limit */
-	if (freq_limit_start_flag & APPS_MIN_BIT) {
-		if (min_value < app_min_freq_limit)
-			min_value = app_min_freq_limit;
-	}
-
-	/* user */
-	if (freq_limit_start_flag & USER_MIN_BIT) {
-		if (min_value < user_min_freq_limit)
-			min_value = user_min_freq_limit;
-	}
-
-	/* max is important */
-	if (min_value > max_value)
-		min_value = max_value;
-
-	mutex_unlock(&set_cpu_freq_lock);
-
-	/* update min/max */
-	cpufreq_set_limits(BOOT_CPU, min_value, max_value);
-	cpufreq_set_limits(NON_BOOT_CPU, min_value, max_value);
-
-	return 0;
-}
-
-static void cpufreq_set_limit_work(struct work_struct *ws)
-{
-	struct cpufreq_queue_data *cq = NULL;
-
-	if (ws) {
-		cq = container_of(ws, struct cpufreq_queue_data, work);
-		if (cq)
-			cpufreq_set_limit(cq->flag, cq->value);
-	}
-
-	up(&cpufreq_defered_lock);
-}
-
-int cpufreq_set_limit_defered(unsigned int flag, unsigned value)
-{
-	int ret = 0;
-
-	if (down_trylock(&cpufreq_defered_lock) == 0) {
-		cpufreq_queue_priv.flag = flag;
-		cpufreq_queue_priv.value = value;
-		ret = queue_work_on(0, cpufreq_queue_priv.wq,
-			&cpufreq_queue_priv.work);
-		if (!ret)
-			up(&cpufreq_defered_lock);
-	} else
-		ret = -EBUSY;
-
-	return ret;
-}
-#endif
-
 /**
  *	cpufreq_update_policy - re-evaluate an existing cpufreq policy
  *	@cpu: CPU which shall be re-evaluated
@@ -2243,6 +1897,31 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 		case CPU_ONLINE:
 		case CPU_ONLINE_FROZEN:
 			cpufreq_add_dev(sys_dev);
+#ifdef CONFIG_SEC_DVFS
+			if (cpu == NON_BOOT_CPU)
+			{
+#ifndef CONFIG_SEC_DVFS_UNI
+				unsigned int cur, min, max;
+				
+				/* get current freq & update now */
+				min = get_min_lock();
+				max = get_max_lock();
+				cur = cpufreq_quick_get(cpu);
+				if (cur)
+				{
+					struct cpufreq_policy policy;
+					policy.cpu = cpu;
+
+					if (min && cur < min)
+						cpufreq_driver_target(&policy, min, CPUFREQ_RELATION_H);
+					else if (max && cur > max)
+						cpufreq_driver_target(&policy, max, CPUFREQ_RELATION_L);
+				}
+#else
+				set_freq_limit(DVFS_UNICPU_ID, -1);
+#endif
+			}
+#endif
 			break;
 		case CPU_DOWN_PREPARE:
 		case CPU_DOWN_PREPARE_FROZEN:
@@ -2250,6 +1929,10 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 				BUG();
 
 			__cpufreq_remove_dev(sys_dev);
+#ifdef CONFIG_SEC_DVFS_UNI
+			if (cpu == NON_BOOT_CPU)
+				set_freq_limit(DVFS_UNICPU_ID, 0);
+#endif			
 			break;
 		case CPU_DOWN_FAILED:
 		case CPU_DOWN_FAILED_FROZEN:
@@ -2327,11 +2010,6 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	register_hotcpu_notifier(&cpufreq_cpu_notifier);
 	pr_debug("driver %s up and running\n", driver_data->name);
 
-#ifdef CONFIG_SEC_DVFS
-	cpufreq_queue_priv.wq = create_workqueue("cpufreq_queue");
-	INIT_WORK(&cpufreq_queue_priv.work, cpufreq_set_limit_work);
-#endif
-
 	return 0;
 err_sysdev_unreg:
 	sysdev_driver_unregister(&cpu_sysdev_class,
@@ -2359,14 +2037,7 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 
 	if (!cpufreq_driver || (driver != cpufreq_driver))
 		return -EINVAL;
-
-#ifdef CONFIG_SEC_DVFS
-	if (cpufreq_queue_priv.wq) {
-		flush_workqueue(cpufreq_queue_priv.wq);
-		destroy_workqueue(cpufreq_queue_priv.wq);
-	}
-#endif
-
+	
 	pr_debug("unregistering driver %s\n", driver->name);
 
 	sysdev_driver_unregister(&cpu_sysdev_class, &cpufreq_sysdev_driver);
@@ -2387,17 +2058,11 @@ static int __init cpufreq_core_init(void)
 	for_each_possible_cpu(cpu) {
 		per_cpu(cpufreq_policy_cpu, cpu) = -1;
 		init_rwsem(&per_cpu(cpu_policy_rwsem, cpu));
-#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
-		mutex_init(&per_cpu(cpufreq_remove_mutex, cpu));
-#endif
 	}
 
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq",
 						&cpu_sysdev_class.kset.kobj);
 	BUG_ON(!cpufreq_global_kobject);
-#ifdef CONFIG_SEC_DVFS
-	freq_limit_start_flag = 0;
-#endif
 	register_syscore_ops(&cpufreq_syscore_ops);
 
 	return 0;
