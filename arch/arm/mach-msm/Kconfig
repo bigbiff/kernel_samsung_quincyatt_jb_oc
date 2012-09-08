@@ -1342,6 +1342,40 @@ config MSM_DALRPC_TEST
 	help
 	  Exercises DAL RPC calls to QDSP6.
 
+config MSM_KGSL_GPU_CLOCK
+	bool "Extend GPU clock frequency"
+	default n
+	help
+	  Adds higher than manufacturer recommended frequencies that can be set
+	  from userspace via sysfs.
+
+choice
+	prompt "Default maximum GPU clock"
+	depends on MSM_KGSL_GPU_CLOCK
+	default MSM_KGSL_GPU_CLOCK_STOCK
+	help
+	  Sets the default maximum clock speed of the GPU in the kernel.
+	  It is recommended to use the Default, and use userspace tools
+	  to control the maximum clock.  Setting this value to anything
+	  other than the default could result in a unbootable system, or
+	  physical damage to the GPU.
+
+	config MSM_KGSL_GPU_CLOCK_DEFAULT
+		bool "Normal (3d@266 & 2d@200)"
+		help
+		  Default GPU clock
+
+	config MSM_KGSL_GPU_CLOCK_MODERATE
+		bool "Moderate (3d@300 & 2d@228)"
+		help
+		  Moderate GPU overclock
+
+	config MSM_KGSL_GPU_CLOCK_MAX
+		bool "Maximum (3d@320 & 2d@266)"
+		help
+		  Maximum GPU overclock
+endchoice
+
 if CPU_FREQ_MSM
 
 config MSM_CPU_FREQ_SET_MIN_MAX
@@ -2140,6 +2174,11 @@ config CLOCK_MAP
 	  A bitmap is maintained in non-cached memory and each registered
 	  clock gets a unique id. If the bitmap has that bit set the clock
 	  is enabled, otherwise the clock is disabled.
+
+config MSM_SLEEP_STATS
+	bool "Enable exporting of MSM sleep stats to userspace"
+	depends on CPU_IDLE
+	default n
 
 config MSM_SLEEP_STATS_DEVICE
 	bool "Enable exporting of MSM sleep device stats to userspace"
