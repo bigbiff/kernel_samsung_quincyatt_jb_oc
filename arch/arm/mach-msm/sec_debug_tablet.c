@@ -842,9 +842,7 @@ void sec_debug_irq_sched_log_end(void)
 		gExcpIrqLog[cpu][i].elapsed_time = cpu_clock(cpu) -gExcpIrqLog[cpu][i].time;
 	}
 }
-#endif /* CONFIG_SEC_DEBUG_SCHED_LOG */
 
-#ifdef CONFIG_SEC_DEBUG_IRQ_EXIT_LOG
 void sec_debug_irq_enterexit_log(unsigned int irq, unsigned long long start_time)
 {
 	int cpu = smp_processor_id();
@@ -867,7 +865,7 @@ void sec_debug_irq_enterexit_log(unsigned int irq, unsigned long long start_time
 		gExcpIrqEnterExitLog[cpu][i].elapsed_time = gExcpIrqEnterExitLog[cpu][i].end_time -start_time;
 	}
 }
-#endif
+#endif /* CONFIG_SEC_DEBUG_SCHED_LOG */
 
 /* klaatu - semaphore log */
 #ifdef CONFIG_SEC_DEBUG_SEMAPHORE_LOG
