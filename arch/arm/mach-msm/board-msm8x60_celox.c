@@ -149,6 +149,15 @@
 #include "acpuclock.h"
 #include "pm-boot.h"
 
+#include <linux/msm_tsens.h>
+
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
+int set_two_phase_freq_badass(int cpufreq);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
+int set_three_phase_freq_badass(int cpufreq);
+#endif
+
 #include <linux/ion.h>
 #include <mach/ion.h>
 
@@ -178,6 +187,14 @@
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include <linux/memblock.h>
+#endif
+
+
+#ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_2_PHASE
+int set_two_phase_freq(int cpufreq);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND_2_PHASE
+int id_set_two_phase_freq(int cpufreq);
 #endif
 
 #define MSM_SHARED_RAM_PHYS 0x40000000
@@ -698,7 +715,7 @@ static struct regulator_init_data saw_s0_init_data = {
 			.name = "8901_s0",
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 			.min_uV = 800000,
-			.max_uV = 1325000,
+			.max_uV = 1400000,
 		},
 		.consumer_supplies = vreg_consumers_8901_S0,
 		.num_consumer_supplies = ARRAY_SIZE(vreg_consumers_8901_S0),
@@ -709,7 +726,7 @@ static struct regulator_init_data saw_s1_init_data = {
 			.name = "8901_s1",
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 			.min_uV = 800000,
-			.max_uV = 1325000,
+			.max_uV = 1400000,
 		},
 		.consumer_supplies = vreg_consumers_8901_S1,
 		.num_consumer_supplies = ARRAY_SIZE(vreg_consumers_8901_S1),
@@ -7483,8 +7500,8 @@ static struct regulator_consumer_supply vreg_consumers_PM8901_S4_PC[] = {
 /* RPM early regulator constraints */
 static struct rpm_regulator_init_data rpm_regulator_early_init_data[] = {
 	/*	 ID       a_on pd ss min_uV   max_uV   init_ip    freq */
-	RPM_SMPS(PM8058_S0, 0, 1, 1,  500000, 1325000, SMPS_HMIN, 1p60),
-	RPM_SMPS(PM8058_S1, 0, 1, 1,  500000, 1250000, SMPS_HMIN, 1p60),
+	RPM_SMPS(PM8058_S0, 0, 1, 1,  500000, 1400000, SMPS_HMIN, 1p60),
+	RPM_SMPS(PM8058_S1, 0, 1, 1,  500000, 1400000, SMPS_HMIN, 1p60),
 };
 
 /* RPM regulator constraints */
@@ -16940,6 +16957,19 @@ static void __init msm8x60_init(struct msm_board_data *board_data)
 			machine_is_msm8x60_fluid() ||
 			machine_is_msm8x60_dragon())
 		msm8x60_init_ebi2();
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE
+	set_two_phase_freq_badass(CONFIG_CPU_FREQ_GOV_BADASS_2_PHASE_FREQ);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE
+	set_three_phase_freq_badass(CONFIG_CPU_FREQ_GOV_BADASS_3_PHASE_FREQ);
+#endif
+
+#ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_2_PHASE
+	set_two_phase_freq(1242000);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND_2_PHASE
+	id_set_two_phase_freq(1188000);
+#endif
 	msm8x60_init_tlmm();
 #ifdef CONFIG_BATTERY_SEC
 	if(is_lpm_boot)
